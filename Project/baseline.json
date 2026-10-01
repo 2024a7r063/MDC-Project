@@ -1,0 +1,54 @@
+{
+    "version": 2,
+    "monitored_folders": [
+        "test_endpoint",
+        "test_endpoint_2"
+    ],
+    "firewall": {
+        "Domain": "ON",
+        "Private": "ON",
+        "Public": "ON"
+    },
+    "files": {
+        "test_endpoint/config.txt": {
+            "folder": "test_endpoint",
+            "rel_path": "config.txt",
+            "filename": "config.txt",
+            "display_path": "test_endpoint/config.txt",
+            "full_path": "c:\\anti-endpoint\\test_endpoint\\config.txt",
+            "hash": "74087f93d2d98bc2c4ee7cf91cf029a66c0f62cc4ae2d80ba1e2a3f3c61a5622"
+        },
+        "test_endpoint/file1.txt": {
+            "folder": "test_endpoint",
+            "rel_path": "file1.txt",
+            "filename": "file1.txt",
+            "display_path": "test_endpoint/file1.txt",
+            "full_path": "c:\\anti-endpoint\\test_endpoint\\file1.txt",
+            "hash": "4d7369715fc07af38ec43d0c299421a32df45f1b49a37320c5038c65ef66b543"
+        },
+        "test_endpoint/file2.txt": {
+            "folder": "test_endpoint",
+            "rel_path": "file2.txt",
+            "filename": "file2.txt",
+            "display_path": "test_endpoint/file2.txt",
+            "full_path": "c:\\anti-endpoint\\test_endpoint\\file2.txt",
+            "hash": "bca9874ba3171baefbabf20c3d331dddaafe246f2ca09a430b574aebf578214e"
+        },
+        "test_endpoint_2/network_log.txt": {
+            "folder": "test_endpoint_2",
+            "rel_path": "network_log.txt",
+            "filename": "network_log.txt",
+            "display_path": "test_endpoint_2/network_log.txt",
+            "full_path": "c:\\anti-endpoint\\test_endpoint_2\\network_log.txt",
+            "hash": "b2a566f9135c5bacd19de31d9c573b4c4c11b2c478fc197b24e892c4a5ce775f"
+        },
+        "test_endpoint_2/services.txt": {
+            "folder": "test_endpoint_2",
+            "rel_path": "services.txt",
+            "filename": "services.txt",
+            "display_path": "test_endpoint_2/services.txt",
+            "full_path": "c:\\anti-endpoint\\test_endpoint_2\\services.txt",
+            "hash": "175759ccee8713f8d44ef61b504441016b562bf512235b543354a8f661792ec9"
+        }
+    }
+}
