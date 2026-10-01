@@ -1,0 +1,4 @@
+# System kernel and security parameters
+SECURITY_POLICY=STRICT
+AUDIT_LOGGING=ENABLED
+MAX_LOGIN_ATTEMPTS=3

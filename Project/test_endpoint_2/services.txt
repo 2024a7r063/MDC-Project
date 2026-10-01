@@ -1,0 +1,3 @@
+HTTP: 80
+HTTPS: 443
+SSH: 22

@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Endpoint Drift Detector & Integrity Monitor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        
+        <!-- Header -->
+        <header class="header">
+            <div class="shield-badge">🛡️ CSE CYBER SECURITY PROTOTYPE</div>
+            <h1>Endpoint Drift Detector</h1>
+            <p class="subtitle">Multi-directory File Integrity Monitoring & Windows Firewall Drift Detection</p>
+        </header>
+
+        <!-- Flash messages / Alerts -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-container">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- Baseline Status & Action Controls -->
+        <div class="controls-card">
+            <div class="status-summary">
+                <div>
+                    <span class="label">Approved Baseline:</span>
+                    {% if baseline_exists %}
+                        <span class="badge badge-success">● Created ({{ baseline_file_count }} files across {{ baseline_folders|length }} folders)</span>
+                        {% if baseline_firewall %}
+                            <div class="sub-label">
+                                Firewall Baseline: 
+                                <code>Domain: {{ baseline_firewall.Domain }}</code> | 
+                                <code>Private: {{ baseline_firewall.Private }}</code> | 
+                                <code>Public: {{ baseline_firewall.Public }}</code>
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <span class="badge badge-danger">○ Not Created (Snapshot required)</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="button-group">
+                <form action="{{ url_for('create_baseline_route') }}" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-primary">
+                        📥 Create Baseline
+                    </button>
+                </form>
+
+                <form action="{{ url_for('scan_endpoint_route') }}" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-secondary">
+                        🔍 Scan Endpoint
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Monitored Folders Management -->
+        <div class="section-card">
+            <div class="section-header">
+                <h3>📁 Monitored Endpoint Directories (Multi-Folder Support)</h3>
+                <span class="sub-label">Recursive monitoring enabled for all subfolders</span>
+            </div>
+            
+            <div class="folders-grid">
+                {% for folder in monitored_folders %}
+                    <div class="folder-chip">
+                        <div class="folder-icon">📂</div>
+                        <div class="folder-details">
+                            <span class="folder-name">{{ folder.name }}/</span>
+                            <span class="folder-meta">{{ folder.count }} active files</span>
+                        </div>
+                        {% if monitored_folders|length > 1 %}
+                            <form action="{{ url_for('remove_folder_route') }}" method="POST" style="display: inline;">
+                                <input type="hidden" name="folder_name" value="{{ folder.path }}">
+                                <button type="submit" class="btn-icon" title="Remove folder from monitoring">✕</button>
+                            </form>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+
+            <form action="{{ url_for('add_folder_route') }}" method="POST" class="add-folder-form">
+                <input type="text" name="folder_name" placeholder="Enter folder name or path (e.g., test_endpoint_3, logs, etc.)" class="input-text" required>
+                <button type="submit" class="btn btn-sm btn-outline">+ Add Monitored Directory</button>
+            </form>
+        </div>
+
+        <!-- Windows Firewall Status & Drift Card -->
+        <div class="section-card firewall-section {% if scan_data and scan_data.firewall.drift_detected %}firewall-alert-card{% endif %}">
+            <div class="section-header">
+                <div>
+                    <h3>🔥 Windows Defender Firewall Posture</h3>
+                    <p class="sub-label">Live OS Host Firewall Monitoring (Domain, Private & Public Profiles)</p>
+                </div>
+                <div>
+                    {% if scan_data %}
+                        {% if scan_data.firewall.drift_detected %}
+                            <span class="badge badge-risk-high">🚨 HIGH RISK: FIREWALL DRIFT</span>
+                        {% else %}
+                            <span class="badge badge-risk-low">✅ FIREWALL SECURE (MATCHES BASELINE)</span>
+                        {% endif %}
+                    {% else %}
+                        <span class="badge badge-status-unchanged">LIVE READING</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if scan_data and scan_data.firewall.drift_detected %}
+                <div class="firewall-drift-warning">
+                    <strong>⚠️ Security Alert:</strong> {{ scan_data.firewall.reasons|join(' ') }}
+                </div>
+            {% endif %}
+
+            <div class="firewall-profiles-grid">
+                {% if scan_data %}
+                    {% for prof in scan_data.firewall.profiles %}
+                        <div class="firewall-profile-card {% if prof.changed or prof.is_disabled %}profile-drifted{% endif %}">
+                            <div class="profile-name">{{ prof.profile }} Profile</div>
+                            <div class="profile-state-row">
+                                <span class="profile-label">Current:</span>
+                                <span class="profile-pill {% if prof.current == 'ON' %}pill-on{% else %}pill-off{% endif %}">
+                                    {{ prof.current }}
+                                </span>
+                            </div>
+                            <div class="profile-state-row">
+                                <span class="profile-label">Baseline:</span>
+                                <span class="profile-pill pill-baseline">{{ prof.baseline }}</span>
+                            </div>
+                            <div class="profile-verdict">
+                                {% if prof.changed or prof.is_disabled %}
+                                    <span class="verdict-danger">⚠️ DRIFT DETECTED</span>
+                                {% else %}
+                                    <span class="verdict-safe">✓ Protected</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    {% for prof_name in ["Domain", "Private", "Public"] %}
+                        <div class="firewall-profile-card">
+                            <div class="profile-name">{{ prof_name }} Profile</div>
+                            <div class="profile-state-row">
+                                <span class="profile-label">Live State:</span>
+                                <span class="profile-pill {% if live_firewall[prof_name] == 'ON' %}pill-on{% else %}pill-off{% endif %}">
+                                    {{ live_firewall[prof_name] }}
+                                </span>
+                            </div>
+                            <div class="profile-verdict">
+                                <span class="verdict-safe">✓ Live OS State</span>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+
+            <!-- Lab Demo / Viva Testing Controls -->
+            <div class="demo-firewall-bar">
+                <span class="demo-label">🧪 Lab / Viva Test Assistant:</span>
+                <span class="demo-note">Change real Windows Firewall in Windows Settings, or use test toggle:</span>
+                <div class="demo-actions">
+                    <form action="{{ url_for('simulate_firewall_toggle_route') }}" method="POST" style="display:inline;">
+                        <input type="hidden" name="action" value="toggle">
+                        <input type="hidden" name="profile" value="Private">
+                        <button type="submit" class="btn btn-xs btn-warning">⚡ Test Toggle Private Firewall</button>
+                    </form>
+                    <form action="{{ url_for('simulate_firewall_toggle_route') }}" method="POST" style="display:inline;">
+                        <input type="hidden" name="action" value="reset">
+                        <button type="submit" class="btn btn-xs btn-outline">🔄 Reset to Live OS</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        {% if scan_data %}
+            <!-- Overall Risk Level Banner -->
+            <div class="risk-card risk-{{ scan_data.overall_risk|lower }}">
+                <div class="risk-header">
+                    <div>
+                        <span class="risk-title">OVERALL RISK LEVEL:</span>
+                        <span class="risk-pill pill-{{ scan_data.overall_risk|lower }}">
+                            {{ scan_data.overall_risk }}
+                        </span>
+                    </div>
+                </div>
+                <div class="risk-reason">
+                    <strong>Evaluation:</strong> {{ scan_data.overall_reason }}
+                </div>
+            </div>
+
+            <!-- Metric Cards -->
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-num">{{ scan_data.total_files }}</div>
+                    <div class="metric-label">Total Files</div>
+                </div>
+                <div class="metric-card metric-new">
+                    <div class="metric-num">{{ scan_data.new_count }}</div>
+                    <div class="metric-label">New Files</div>
+                </div>
+                <div class="metric-card metric-modified">
+                    <div class="metric-num">{{ scan_data.modified_count }}</div>
+                    <div class="metric-label">Modified Files</div>
+                </div>
+                <div class="metric-card metric-deleted">
+                    <div class="metric-num">{{ scan_data.deleted_count }}</div>
+                    <div class="metric-label">Deleted Files</div>
+                </div>
+                <div class="metric-card metric-unchanged">
+                    <div class="metric-num">{{ scan_data.unchanged_count }}</div>
+                    <div class="metric-label">Unchanged Files</div>
+                </div>
+                <div class="metric-card {% if scan_data.firewall.drift_detected %}metric-firewall-drift{% endif %}">
+                    <div class="metric-num">{% if scan_data.firewall.drift_detected %}1 ALERT{% else %}0{% endif %}</div>
+                    <div class="metric-label">Firewall Drift</div>
+                </div>
+            </div>
+
+            <!-- Drift Detection Details Table -->
+            <div class="table-card">
+                <h2>Detected File Integrity Drift Across Monitored Folders</h2>
+                <div class="table-responsive">
+                    <table class="drift-table">
+                        <thead>
+                            <tr>
+                                <th>Monitored Folder</th>
+                                <th>File Name / Relative Path</th>
+                                <th>Drift Status</th>
+                                <th>Risk Level</th>
+                                <th>Risk Rationale</th>
+                                <th>Current SHA-256 Hash</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in scan_data.results %}
+                                <tr>
+                                    <td>
+                                        <span class="folder-tag">📁 {{ item.folder }}</span>
+                                    </td>
+                                    <td class="filename-cell">
+                                        <strong>{{ item.filename }}</strong>
+                                        {% if item.display_path != item.folder ~ '/' ~ item.filename %}
+                                            <div class="sub-path">{{ item.display_path }}</div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-status-{{ item.status|lower }}">
+                                            {{ item.status }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-risk-{{ item.risk|lower }}">
+                                            {{ item.risk }}
+                                        </span>
+                                    </td>
+                                    <td class="reason-cell">
+                                        {{ item.reason }}
+                                    </td>
+                                    <td class="hash-cell">
+                                        <code>{{ item.current_hash }}</code>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% else %}
+            <!-- Welcome placeholder before scanning -->
+            <div class="placeholder-card">
+                <h3>Endpoint Drift Detector Ready</h3>
+                <p>Follow these steps to demonstrate and test the system:</p>
+                <ol>
+                    <li>Click <strong>"Create Baseline"</strong> to snapshot the approved safe state of all monitored folders and the live Windows Firewall state.</li>
+                    <li><strong>Test Multi-Folder Changes:</strong> Add, edit, or delete files in <code>test_endpoint/</code> or <code>test_endpoint_2/</code> or any subfolder.</li>
+                    <li><strong>Test File Risk Levels:</strong>
+                        <ul>
+                            <li>Create a standard text file (e.g. <code>notes.txt</code>) &rarr; flags as <strong>MEDIUM</strong> risk.</li>
+                            <li>Create a script/executable (e.g. <code>run.bat</code>, <code>script.ps1</code>) or security config &rarr; flags as <strong>HIGH</strong> risk!</li>
+                        </ul>
+                    </li>
+                    <li><strong>Test Windows Firewall Drift:</strong> Change Windows Defender Firewall in Windows Settings or click the "Test Toggle" button &rarr; triggers a prominent <strong>HIGH RISK FIREWALL ALERT</strong>!</li>
+                    <li>Click <strong>"Scan Endpoint"</strong> to view real-time drift analysis and risk evaluation.</li>
+                </ol>
+            </div>
+        {% endif %}
+
+        <!-- Educational Viva / Technical Rules Footer -->
+        <footer class="footer">
+            <div class="footer-box">
+                <h4>Cybersecurity Evaluation Logic:</h4>
+                <p><strong>🔥 Windows Firewall:</strong> If any Windows Firewall profile (Domain, Private, Public) is disabled (OFF) or deviates from baseline, it immediately triggers a <strong>HIGH RISK</strong> alert.</p>
+                <p><strong>📁 Multi-Folder & Subfolder Scope:</strong> Files across all configured monitored directories are discovered and hashed recursively using SHA-256.</p>
+                <p><strong>⚡ File Risk Rules:</strong>
+                    Executable scripts (<code>.bat</code>, <code>.ps1</code>, <code>.exe</code>, etc.) and security/firewall configurations (<code>config</code>, <code>firewall</code>, <code>.conf</code>) added or altered are classified as <strong>HIGH</strong> risk. Standard documents added or modified are <strong>MEDIUM</strong> risk. Baseline-identical files are <strong>LOW</strong> risk.
+                </p>
+            </div>
+        </footer>
+
+    </div>
+</body>
+</html>

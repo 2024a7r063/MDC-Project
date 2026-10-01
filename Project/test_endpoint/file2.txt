@@ -1,0 +1,4 @@
+# User application settings
+DEFAULT_USER=analyst
+SESSION_TIMEOUT=30
+AUTO_BACKUP=TRUE
